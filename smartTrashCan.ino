@@ -11,19 +11,15 @@ int led = 13;
 long duration;
 int distance;
 
-int servoSpeed = 20; 
-int currentPos = 54; // Starts at default (54 degrees)
-bool moveLeft = true; // Toggle variable to track direction
+// --- Settings ---
+int servoSpeed = 50;   
+int defaultPos = 45;   
+int currentPos = 45;   
+bool moveLeft = true;  
 
 void setup() {
   lcd.init();
   lcd.backlight();
-  lcd.clear();
-
-  // POWER ON MESSAGE
-  lcd.setCursor(0, 0);
-  lcd.print("Hello User!");
-  delay(2000);
   lcd.clear();
   
   lidServo.attach(3);
@@ -31,8 +27,7 @@ void setup() {
   pinMode(echoPin, INPUT);
   pinMode(led, OUTPUT);
   
-  // Set to default position
-  lidServo.write(54); 
+  lidServo.write(defaultPos); 
 }
 
 void loop() {
@@ -46,20 +41,21 @@ void loop() {
   duration = pulseIn(echoPin, HIGH);
   distance = duration * 0.034 / 2;
 
-  if (distance > 0 && distance < 30) {
+  // Trigger if hand is detected (less than 20 cm)
+  if (distance > 0 && distance < 20) {
+    lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Hello World    "); 
+    lcd.print("Hello World"); 
     digitalWrite(led, HIGH);
 
+    // --- STEP 1: SLOW MOVE TO OPEN (Left 0 or Right 90) ---
     if (moveLeft) {
-      // --- MOVE TO LEFT (0) ---
       for (int pos = currentPos; pos >= 0; pos -= 1) {
         lidServo.write(pos);
         delay(servoSpeed);
       }
       currentPos = 0;
     } else {
-      // --- MOVE TO RIGHT (90) ---
       for (int pos = currentPos; pos <= 90; pos += 1) {
         lidServo.write(pos);
         delay(servoSpeed);
@@ -67,30 +63,47 @@ void loop() {
       currentPos = 90;
     }
 
-    delay(3000); // Stay at position for 3 seconds
+    // --- NEW LOGIC: HOLD POSITION ---
+    // This loop keeps the lid open as long as your hand is detected
+    do {
+      digitalWrite(trigPin, LOW);
+      delayMicroseconds(5);
+      digitalWrite(trigPin, HIGH);
+      delayMicroseconds(10);
+      digitalWrite(trigPin, LOW);
+      duration = pulseIn(echoPin, HIGH);
+      distance = duration * 0.034 / 2;
+      
+      delay(100); // Short delay to stabilize sensor readings
+    } while (distance > 0 && distance < 20);
 
-    // --- RETURN TO DEFAULT (54) ---
-    if (currentPos > 54) {
-      for (int pos = currentPos; pos >= 54; pos -= 1) {
+    // Optional: Keep it open for 1 extra second after hand is removed
+    delay(1000); 
+
+    // --- STEP 2: SLOW BOUNCE BACK TO DEFAULT (45) ---
+    if (currentPos > defaultPos) {
+      for (int pos = currentPos; pos >= defaultPos; pos -= 1) {
         lidServo.write(pos);
         delay(servoSpeed);
       }
     } else {
-      for (int pos = currentPos; pos <= 54; pos += 1) {
+      for (int pos = currentPos; pos <= defaultPos; pos += 1) {
         lidServo.write(pos);
         delay(servoSpeed);
       }
     }
-    
-    currentPos = 54;         // Reset position tracker
-    moveLeft = !moveLeft;    // Toggle direction for the NEXT detection
+
+    currentPos = defaultPos;  
+    moveLeft = !moveLeft;     // Flip direction for next time
     digitalWrite(led, LOW);
     lcd.clear();
-  } else {
-    // If no sense detected, ensure it stays at 54 (your default)
-    // Note: You mentioned 45 in your text, but 54 in your requirement. 
-    // I am using 54 to match your "default" setting.
-    lidServo.write(54); 
+  } 
+  else {
+    // --- IDLE STATE ---
+    lcd.setCursor(0, 0);
+    lcd.print("Hello User!     "); 
+    lidServo.write(defaultPos); 
+    currentPos = defaultPos;
   }
 
   delay(100); 
