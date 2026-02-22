@@ -45,7 +45,7 @@ void loop() {
   if (distance > 0 && distance < 20) {
     lcd.clear();
     lcd.setCursor(0, 0);
-    lcd.print("Hello World"); 
+    lcd.print("Working!   "); 
     digitalWrite(led, HIGH);
 
     // --- STEP 1: SLOW MOVE TO OPEN (Left 0 or Right 90) ---
